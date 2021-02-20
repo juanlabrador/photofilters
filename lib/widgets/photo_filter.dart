@@ -61,7 +61,8 @@ class PhotoFilterSelector extends StatefulWidget {
   final Color background;
   final Color textColor;
   final Color circleProgressColor;
-  final Stream execute;
+  final Stream stream;
+  final Function(bool) isLoading;
   final Function(File) savedFile;
 
   const PhotoFilterSelector(
@@ -74,7 +75,8 @@ class PhotoFilterSelector extends StatefulWidget {
       this.background = Colors.white,
       this.textColor = Colors.black,
       this.circleProgressColor = Colors.blue,
-      this.execute,
+      this.stream,
+      this.isLoading,
       this.savedFile})
       : super(key: key);
 
@@ -88,6 +90,7 @@ class _PhotoFilterSelectorState extends State<PhotoFilterSelector> {
   Filter _filter;
   imageLib.Image image;
   bool loading;
+  double sizeFilter = 80.0;
 
   @override
   void initState() {
@@ -96,7 +99,7 @@ class _PhotoFilterSelectorState extends State<PhotoFilterSelector> {
     _filter = widget.filters[0];
     filename = widget.filename;
     image = widget.image;
-    widget.execute.listen((event) {
+    widget.stream.listen((event) {
       saveFile();
     });
   }
@@ -105,7 +108,12 @@ class _PhotoFilterSelectorState extends State<PhotoFilterSelector> {
     setState(() {
       loading = true;
     });
+    widget.isLoading.call(true);
     widget.savedFile.call(await saveFilteredImage());
+    setState(() {
+      loading = false;
+    });
+    widget.isLoading.call(false);
   }
 
   @override
@@ -196,22 +204,22 @@ class _PhotoFilterSelectorState extends State<PhotoFilterSelector> {
             case ConnectionState.active:
             case ConnectionState.waiting:
               return Container(
-                width: 100,
-                height: 100,
+                width: sizeFilter,
+                height: sizeFilter,
                 child: Center(
                   child: _circularProgressFilters,
                 ),
-                color: Colors.black,
+                color: widget.background,
               );
             case ConnectionState.done:
               if (snapshot.hasError)
                 return Center(child: Text('Error: ${snapshot.error}'));
               cachedFilters[filter?.name ?? "_"] = snapshot.data;
               return Container(
-                  width: 100,
-                  height: 100,
+                  width: sizeFilter,
+                  height: sizeFilter,
                   decoration: BoxDecoration(
-                      color: Colors.black,
+                      color: widget.background,
                       image: DecorationImage(
                           image: MemoryImage(snapshot.data),
                           fit: BoxFit.cover)));
@@ -221,10 +229,10 @@ class _PhotoFilterSelectorState extends State<PhotoFilterSelector> {
       );
     } else {
       return Container(
-          width: 100,
-          height: 100,
+          width: sizeFilter,
+          height: sizeFilter,
           decoration: BoxDecoration(
-              color: Colors.black,
+              color: widget.background,
               image: DecorationImage(
                   image: MemoryImage(
                     cachedFilters[filter?.name ?? "_"],
@@ -266,9 +274,11 @@ class _PhotoFilterSelectorState extends State<PhotoFilterSelector> {
                   child: _circleProgress, alignment: Alignment.center);
             case ConnectionState.active:
             case ConnectionState.waiting:
+              widget.isLoading.call(true);
               return Container(
                   child: _circleProgress, alignment: Alignment.center);
             case ConnectionState.done:
+              widget.isLoading.call(false);
               if (snapshot.hasError)
                 return Center(child: Text('Error: ${snapshot.error}'));
               cachedFilters[filter?.name ?? "_"] = snapshot.data;
