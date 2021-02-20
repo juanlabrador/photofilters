@@ -124,7 +124,7 @@ class _PhotoFilterSelectorState extends State<PhotoFilterSelector> {
         width: double.infinity,
         height: double.infinity,
         child: loading
-            ? Container(child: _circleProgress, alignment: Alignment.center)
+            ? Container()
             : Column(
                 mainAxisSize: MainAxisSize.max,
                 children: [
