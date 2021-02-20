@@ -18,6 +18,7 @@ class _MyAppState extends State<MyApp> {
   String fileName;
   List<Filter> filters = presetFiltersList;
   File imageFile;
+  Function saveFile;
 
   Future getImage(context) async {
     imageFile = await ImagePicker.pickImage(source: ImageSource.gallery);
@@ -27,13 +28,16 @@ class _MyAppState extends State<MyApp> {
     Map imagefile = await Navigator.push(
       context,
       new MaterialPageRoute(
-        builder: (context) => new PhotoFilterSelector(
-          title: Text("Photo Filter Example"),
+        builder: (context) => PhotoFilterSelector(
           image: image,
           filters: presetFiltersList,
           filename: fileName,
-          loader: Center(child: CircularProgressIndicator()),
+          background: Colors.black,
+          textColor: Colors.white,
           fit: BoxFit.contain,
+          savedFile: (file) {
+
+          },
         ),
       ),
     );
@@ -50,6 +54,14 @@ class _MyAppState extends State<MyApp> {
     return new Scaffold(
       appBar: new AppBar(
         title: new Text('Photo Filter Example'),
+        actions: <Widget>[
+          IconButton(
+            icon: Icon(Icons.check),
+            onPressed: () async {
+              saveFile.call();
+            },
+          )
+        ],
       ),
       body: Center(
         child: new Container(

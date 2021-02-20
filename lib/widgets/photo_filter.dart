@@ -53,26 +53,30 @@ class PhotoFilter extends StatelessWidget {
 
 ///The PhotoFilterSelector Widget for apply filter from a selected set of filters
 class PhotoFilterSelector extends StatefulWidget {
-  final Widget title;
-  final Color appBarColor;
   final List<Filter> filters;
   final imageLib.Image image;
-  final Widget loader;
   final BoxFit fit;
   final String filename;
   final bool circleShape;
+  final Color background;
+  final Color textColor;
+  final Color circleProgressColor;
+  final Stream execute;
+  final Function(File) savedFile;
 
-  const PhotoFilterSelector({
-    Key key,
-    @required this.title,
-    @required this.filters,
-    @required this.image,
-    this.appBarColor = Colors.blue,
-    this.loader = const Center(child: CircularProgressIndicator()),
-    this.fit = BoxFit.fill,
-    @required this.filename,
-    this.circleShape = false,
-  }) : super(key: key);
+  const PhotoFilterSelector(
+      {Key key,
+      @required this.filters,
+      @required this.image,
+      this.fit = BoxFit.fill,
+      @required this.filename,
+      this.circleShape = false,
+      this.background = Colors.white,
+      this.textColor = Colors.black,
+      this.circleProgressColor = Colors.blue,
+      this.execute,
+      this.savedFile})
+      : super(key: key);
 
   @override
   State<StatefulWidget> createState() => new _PhotoFilterSelectorState();
@@ -92,95 +96,91 @@ class _PhotoFilterSelectorState extends State<PhotoFilterSelector> {
     _filter = widget.filters[0];
     filename = widget.filename;
     image = widget.image;
+    widget.execute.listen((event) {
+      saveFile();
+    });
   }
 
-  @override
-  void dispose() {
-    super.dispose();
+  void saveFile() async {
+    setState(() {
+      loading = true;
+    });
+    widget.savedFile.call(await saveFilteredImage());
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          title: widget.title,
-          backgroundColor: widget.appBarColor,
-          actions: <Widget>[
-            loading
-                ? Container()
-                : IconButton(
-                    icon: Icon(Icons.check),
-                    onPressed: () async {
-                      setState(() {
-                        loading = true;
-                      });
-                      var imageFile = await saveFilteredImage();
-
-                      Navigator.pop(context, {'image_filtered': imageFile});
-                    },
-                  )
-          ],
-        ),
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          child: loading
-              ? widget.loader
-              : Column(
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    Expanded(
-                      flex: 6,
-                      child: Container(
-                        width: double.infinity,
-                        height: double.infinity,
-                        padding: EdgeInsets.all(12.0),
-                        child: _buildFilteredImage(
-                          _filter,
-                          image,
-                          filename,
-                        ),
+    return Scaffold(
+      body: Container(
+        color: widget.background,
+        width: double.infinity,
+        height: double.infinity,
+        child: loading
+            ? Container(child: _circleProgress, alignment: Alignment.center)
+            : Column(
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  Expanded(
+                    flex: 6,
+                    child: Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      child: _buildFilteredImage(
+                        _filter,
+                        image,
+                        filename,
                       ),
                     ),
-                    Expanded(
-                      flex: 2,
-                      child: Container(
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: widget.filters.length,
-                          itemBuilder: (BuildContext context, int index) {
-                            return InkWell(
-                              child: Container(
-                                padding: EdgeInsets.all(5.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: <Widget>[
-                                    _buildFilterThumbnail(
-                                        widget.filters[index], image, filename),
-                                    SizedBox(
-                                      height: 5.0,
-                                    ),
-                                    Text(
-                                      widget.filters[index].name,
-                                    )
-                                  ],
-                                ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: widget.filters.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          return InkWell(
+                            child: Container(
+                              padding: EdgeInsets.all(3.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: <Widget>[
+                                  _buildFilterThumbnail(
+                                      widget.filters[index], image, filename),
+                                  SizedBox(
+                                    height: 8.0,
+                                  ),
+                                  Text(
+                                    widget.filters[index].name,
+                                    style: TextStyle(
+                                        color: widget.textColor, fontSize: 12),
+                                  )
+                                ],
                               ),
-                              onTap: () => setState(() {
-                                _filter = widget.filters[index];
-                              }),
-                            );
-                          },
-                        ),
+                            ),
+                            onTap: () => setState(() {
+                              _filter = widget.filters[index];
+                            }),
+                          );
+                        },
                       ),
                     ),
-                  ],
-                ),
-        ),
+                  ),
+                ],
+              ),
       ),
     );
   }
+
+  Widget get _circleProgress => CircularProgressIndicator(
+      valueColor: AlwaysStoppedAnimation(widget.circleProgressColor));
+
+  Widget get _circularProgressFilters => SizedBox(
+      height: 16.0,
+      width: 16.0,
+      child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation(widget.circleProgressColor),
+          strokeWidth: 2.0));
 
   _buildFilterThumbnail(Filter filter, imageLib.Image image, String filename) {
     if (cachedFilters[filter?.name ?? "_"] == null) {
@@ -195,36 +195,41 @@ class _PhotoFilterSelectorState extends State<PhotoFilterSelector> {
             case ConnectionState.none:
             case ConnectionState.active:
             case ConnectionState.waiting:
-              return CircleAvatar(
-                radius: 50.0,
+              return Container(
+                width: 100,
+                height: 100,
                 child: Center(
-                  child: widget.loader,
+                  child: _circularProgressFilters,
                 ),
-                backgroundColor: Colors.white,
+                color: Colors.black,
               );
             case ConnectionState.done:
               if (snapshot.hasError)
                 return Center(child: Text('Error: ${snapshot.error}'));
               cachedFilters[filter?.name ?? "_"] = snapshot.data;
-              return CircleAvatar(
-                radius: 50.0,
-                backgroundImage: MemoryImage(
-                  snapshot.data,
-                ),
-                backgroundColor: Colors.white,
-              );
+              return Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                      color: Colors.black,
+                      image: DecorationImage(
+                          image: MemoryImage(snapshot.data),
+                          fit: BoxFit.cover)));
           }
           return null; // unreachable
         },
       );
     } else {
-      return CircleAvatar(
-        radius: 50.0,
-        backgroundImage: MemoryImage(
-          cachedFilters[filter?.name ?? "_"],
-        ),
-        backgroundColor: Colors.white,
-      );
+      return Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+              color: Colors.black,
+              image: DecorationImage(
+                  image: MemoryImage(
+                    cachedFilters[filter?.name ?? "_"],
+                  ),
+                  fit: BoxFit.cover)));
     }
   }
 
@@ -257,10 +262,12 @@ class _PhotoFilterSelectorState extends State<PhotoFilterSelector> {
         builder: (BuildContext context, AsyncSnapshot<List<int>> snapshot) {
           switch (snapshot.connectionState) {
             case ConnectionState.none:
-              return widget.loader;
+              return Container(
+                  child: _circleProgress, alignment: Alignment.center);
             case ConnectionState.active:
             case ConnectionState.waiting:
-              return widget.loader;
+              return Container(
+                  child: _circleProgress, alignment: Alignment.center);
             case ConnectionState.done:
               if (snapshot.hasError)
                 return Center(child: Text('Error: ${snapshot.error}'));
