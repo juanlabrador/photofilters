@@ -61,7 +61,7 @@ class PhotoFilterSelector extends StatefulWidget {
   final Color background;
   final Color textColor;
   final Color circleProgressColor;
-  final Stream stream;
+  final StreamController streamController;
   final Function(bool) isLoading;
   final Function(File) savedFile;
 
@@ -75,7 +75,7 @@ class PhotoFilterSelector extends StatefulWidget {
       this.background = Colors.white,
       this.textColor = Colors.black,
       this.circleProgressColor = Colors.blue,
-      this.stream,
+      this.streamController,
       this.isLoading,
       this.savedFile})
       : super(key: key);
@@ -99,9 +99,15 @@ class _PhotoFilterSelectorState extends State<PhotoFilterSelector> {
     _filter = widget.filters[0];
     filename = widget.filename;
     image = widget.image;
-    widget.stream.listen((event) {
+    widget.streamController.stream.listen((event) {
       saveFile();
     });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    widget.streamController.close();
   }
 
   void saveFile() async {
@@ -270,13 +276,11 @@ class _PhotoFilterSelectorState extends State<PhotoFilterSelector> {
         builder: (BuildContext context, AsyncSnapshot<List<int>> snapshot) {
           switch (snapshot.connectionState) {
             case ConnectionState.none:
-              return Container(
-                  child: _circleProgress, alignment: Alignment.center);
+              return Container();
             case ConnectionState.active:
             case ConnectionState.waiting:
               widget.isLoading.call(true);
-              return Container(
-                  child: _circleProgress, alignment: Alignment.center);
+              return Container();
             case ConnectionState.done:
               widget.isLoading.call(false);
               if (snapshot.hasError)
